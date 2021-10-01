@@ -29,11 +29,8 @@ std::string DatalogProgram::ToString() {
         toReturn += "  " + query->ToString() + "?\n";
     }
     toReturn += "Domain(" + std::to_string(stringsInFacts.size()) + "):\n";
-    for (Predicate* fact : facts) {
-
-        for (const std::string &s : stringsInFacts) {
-            toReturn += "  " + s + "\n";
-        }
+    for (const std::string &s : stringsInFacts) {
+        toReturn += "  " + s + "\n";
     }
     return toReturn;
 }
