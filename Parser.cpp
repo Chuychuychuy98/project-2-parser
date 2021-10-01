@@ -1,4 +1,3 @@
-#pragma clang diagnostic push
 #pragma ide diagnostic ignored "hicpp-exception-baseclass"
 //
 // Created by Chandler Rowe on 9/22/21.
@@ -13,95 +12,101 @@ Parser::Parser(const std::vector<Token*> &tokens) {
     this->tokens = tokens;
 }
 
-DatalogProgram Parser::Parse() {
+DatalogProgram *Parser::Parse() {
+    auto prog = new DatalogProgram();
     try {
         if (tokens.at(index)->GetType() != TokenType::SCHEMES) {
-            throw "Expected SCHEMES, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
         index++;
 
         if (tokens.at(index)->GetType() != TokenType::COLON) {
-            throw "Expected COLON, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
         index++;
 
         if (!FIRST("scheme").count(tokens.at(index)->GetType())) {
-            throw "Expected scheme, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
-        ParseScheme();
+        prog->AddScheme(ParseScheme());
 
         if (FIRST("schemeList").count(tokens.at(index)->GetType())) {
-            ParseSchemeList();
+            ParseSchemeList(prog);
         }
         else if (!FOLLOW("schemeList").count(tokens.at(index)->GetType())) {
-            throw "Expected schemeList, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
 
         if (tokens.at(index)->GetType() != TokenType::FACTS) {
-            throw "Expected FACTS, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
         index++;
 
         if (tokens.at(index)->GetType() != TokenType::COLON) {
-            throw "Expected COLON, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
         index++;
 
         if (FIRST("factList").count(tokens.at(index)->GetType())) {
-            ParseFactList();
+            ParseFactList(prog);
         }
         else if (!FOLLOW("factList").count(tokens.at(index)->GetType())) {
-            throw "Expected factList, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
 
         if (tokens.at(index)->GetType() != TokenType::RULES) {
-            throw "Expected RULES, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
         index++;
 
         if (tokens.at(index)->GetType() != TokenType::COLON) {
-            throw "Expected COLON, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
         index++;
 
         if (FIRST("ruleList").count(tokens.at(index)->GetType())) {
-            ParseRuleList();
+            ParseRuleList(prog);
         }
         else if (!FOLLOW("ruleList").count(tokens.at(index)->GetType())) {
-            throw "Expected ruleList, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
 
         if (tokens.at(index)->GetType() != TokenType::QUERIES) {
-            throw "Expected QUERIES, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
         index++;
 
         if (tokens.at(index)->GetType() != TokenType::COLON) {
-            throw "Expected COLON, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
         index++;
 
         if (!FIRST("query").count(tokens.at(index)->GetType())) {
-            throw "Expected query, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
-        ParseQuery();
+        prog->AddQuery(ParseQuery());
 
         if (FIRST("queryList").count(tokens.at(index)->GetType())) {
-            ParseQueryList();
+            ParseQueryList(prog);
         }
         else if (!FOLLOW("queryList").count(tokens.at(index)->GetType())) {
-            throw "Expected queryList, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
 
         if (tokens.at(index)->GetType() != TokenType::END_OF_FILE) {
-            throw "Expected EOF, got " + tokens.at(index)->ToString();
+            throw tokens.at(index)->ToString();
         }
+        std::cout << "Success!" << std::endl;
+        std::cout << prog->ToString();
+        return prog;
     }
     catch(std::string &message) {
-        std::cout << "Exception in Parse: " << message << std::endl;
+        std::cout << "Failure!" << std::endl << "  " << message << std::endl;
+        return prog;
     }
     catch(std::out_of_range &e) {
         std::cout << "Exception in Parse: Reached end of file early." << std::endl;
+        return prog;
     }
 }
 
@@ -116,6 +121,7 @@ std::set<TokenType> Parser::FIRST(const std::string &toCheck) {
     else if (toCheck == "parameter") {
         return std::set<TokenType> (std::initializer_list<TokenType> {TokenType::STRING, TokenType::ID});
     }
+    return std::set<TokenType>();
 }
 
 std::set<TokenType> Parser::FOLLOW(const std::string &toCheck) {
@@ -137,322 +143,259 @@ std::set<TokenType> Parser::FOLLOW(const std::string &toCheck) {
     else if (toCheck == "queryList") {
         return std::set<TokenType> (std::initializer_list<TokenType> {TokenType::END_OF_FILE});
     }
+    return std::set<TokenType>();
 }
 
-void Parser::ParseScheme() {
-    try {
-        if (tokens.at(index)->GetType() != TokenType::ID) {
-            throw "Expected ID, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (tokens.at(index)->GetType() != TokenType::LEFT_PAREN) {
-            throw "Expected LEFT_PAREN, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (tokens.at(index)->GetType() != TokenType::ID) {
-            throw "Expected ID, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (FIRST("idList").count(tokens.at(index)->GetType())) {
-            //idList -> COMMA ID idList
-            ParseIDList();
-        } else if (!FOLLOW("idList").count(tokens.at(index)->GetType())) {
-            throw "Expected idList, got " + tokens.at(index)->ToString();
-        }
-        //idList -> lambda
-
-        if (tokens.at(index)->GetType() != TokenType::RIGHT_PAREN) {
-            throw "Expected RIGHT_PAREN, got " + tokens.at(index)->ToString();
-        }
-        index++;
+Predicate* Parser::ParseScheme() {
+    if (tokens.at(index)->GetType() != TokenType::ID) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParseScheme():"  << message << std::endl;
+    auto pred = new Predicate(tokens.at(index)->GetDescription());
+    index++;
+
+    if (tokens.at(index)->GetType() != TokenType::LEFT_PAREN) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParseScheme(): Reached end of file early." << std::endl;
+    index++;
+
+    if (tokens.at(index)->GetType() != TokenType::ID) {
+        throw tokens.at(index)->ToString();
     }
+    pred->AddParameter(new Parameter(tokens.at(index)->GetDescription()));
+    index++;
+
+    if (FIRST("idList").count(tokens.at(index)->GetType())) {
+        //idList -> COMMA ID idList
+        ParseIDList(pred);
+    } else if (!FOLLOW("idList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
+    //idList -> lambda
+
+    if (tokens.at(index)->GetType() != TokenType::RIGHT_PAREN) {
+        throw tokens.at(index)->ToString();
+    }
+    index++;
+    return pred;
 }
 
-void Parser::ParseSchemeList() {
+void Parser::ParseSchemeList(DatalogProgram* prog) {
 
 }
 
-void Parser::ParseFactList() {
-    try {
-        if (!FIRST("fact").count(tokens.at(index)->GetType())) {
-            throw "Expected fact, got " + tokens.at(index)->ToString();
-        }
-        ParseFact();
-        if (FIRST("factList").count(tokens.at(index)->GetType())) {
-            ParseFactList();
-        }
-        else if (!FOLLOW("factList").count(tokens.at(index)->GetType())) {
-            throw "Expected factList, got " + tokens.at(index)->ToString();
-        }
+void Parser::ParseFactList(DatalogProgram* prog) {
+    if (!FIRST("fact").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParseFactList(): " << message << std::endl;
+    prog->AddFact(ParseFact());
+    if (FIRST("factList").count(tokens.at(index)->GetType())) {
+        ParseFactList(prog);
     }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParseFactList(): Reached end of file prematurely." << std::endl;
+    else if (!FOLLOW("factList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
     }
 }
 
-void Parser::ParseRuleList() {
-    try {
-        if (!FIRST("rule").count(tokens.at(index)->GetType())) {
-
-        }
-        ParseRule();
-
-        if (FIRST("ruleList").count(tokens.at(index)->GetType())) {
-            ParseRuleList();
-        }
-        else if (!FOLLOW("ruleList").count(tokens.at(index)->GetType())) {
-            throw "Expected ruleList, got " + tokens.at(index)->ToString();
-        }
+void Parser::ParseRuleList(DatalogProgram* prog) {
+    if (!FIRST("rule").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParseRuleList(): " << message << std::endl;
+    prog->AddRule(ParseRule());
+
+    if (FIRST("ruleList").count(tokens.at(index)->GetType())) {
+        ParseRuleList(prog);
     }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParseRuleList(): Reached end of file prematurely." << std::endl;
+    else if (!FOLLOW("ruleList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
     }
 }
 
-void Parser::ParseQuery() {
-    try {
-        if (!FIRST("predicate").count(tokens.at(index)->GetType())) {
-            throw "Expected predicate, got " + tokens.at(index)->ToString();
-        }
-        ParsePredicate();
+Predicate* Parser::ParseQuery() {
+    if (!FIRST("predicate").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
+    Predicate* pred = ParsePredicate();
 
-        if (tokens.at(index)->GetType() != TokenType::Q_MARK) {
-            throw "Expected Q_MARK, got " + tokens.at(index)->ToString();
-        }
-        index++;
+    if (tokens.at(index)->GetType() != TokenType::Q_MARK) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParseQuery(): " << message << std::endl;
-    }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParseQuery(): Reached end of file prematurely." << std::endl;
-    }
+    index++;
+    return pred;
 }
 
-void Parser::ParseQueryList() {
+void Parser::ParseQueryList(DatalogProgram* prog) {
 
 }
 
-void Parser::ParseIDList() {
-    try {
-        if (tokens.at(index)->GetType() != TokenType::COMMA) {
-            throw "Expected COMMA, got " + tokens.at(index)->ToString();
-        }
-        index++;
+void Parser::ParseIDList(Predicate* pred) {
 
-        if (tokens.at(index)->GetType() != TokenType::ID) {
-            throw "Expected ID, got " + tokens.at(index)->ToString();
-        }
-        index++;
+    if (tokens.at(index)->GetType() != TokenType::COMMA) {
+        throw tokens.at(index)->ToString();
+    }
+    index++;
 
-        if (FIRST("idList").count(tokens.at(index)->GetType())) {
-            //idList -> COMMA ID idList
-            ParseIDList();
-        } else if (!FOLLOW("idList").count(tokens.at(index)->GetType())) {
-            throw "Expected idList, got " + tokens.at(index)->ToString();
-        }
-        //idList -> lambda
+    if (tokens.at(index)->GetType() != TokenType::ID) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParseIDList(): " << message << std::endl;
-    }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParseIDList(): Reached end of file prematurely." << std::endl;
+    pred->AddParameter(new Parameter(tokens.at(index)->GetDescription()));
+    index++;
+
+    if (FIRST("idList").count(tokens.at(index)->GetType())) {
+        //idList -> COMMA ID idList
+        ParseIDList(pred);
+    } else if (!FOLLOW("idList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
     }
 }
 
-void Parser::ParseFact() {
-    try {
-        if (tokens.at(index)->GetType() != TokenType::ID) {
-            throw "Expected ID, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (tokens.at(index)->GetType() != TokenType::LEFT_PAREN) {
-            throw "Expected LEFT_PAREN, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (tokens.at(index)->GetType() != TokenType::STRING) {
-            throw "Expected STRING, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (FIRST("stringList").count(tokens.at(index)->GetType())) {
-            ParseStringList();
-        }
-        else if (!FOLLOW("stringList").count(tokens.at(index)->GetType())) {
-            throw "Expected stringList, got " + tokens.at(index)->ToString();
-        }
-
-        if (tokens.at(index)->GetType() != TokenType::RIGHT_PAREN) {
-            throw "Expected RIGHT_PAREN, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (tokens.at(index)->GetType() != TokenType::PERIOD) {
-            throw "Expected PERIOD, got " + tokens.at(index)->ToString();
-        }
-        index++;
+Predicate* Parser::ParseFact() {
+    if (tokens.at(index)->GetType() != TokenType::ID) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParseFact(): " << message << std::endl;
+    auto pred = new Predicate(tokens.at(index)->GetDescription());
+    index++;
+
+    if (tokens.at(index)->GetType() != TokenType::LEFT_PAREN) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParseFact(): Reached end of file prematurely." << std::endl;
+    index++;
+
+    if (tokens.at(index)->GetType() != TokenType::STRING) {
+        throw tokens.at(index)->ToString();
     }
+    pred->AddParameter(new Parameter(tokens.at(index)->GetDescription()));
+    index++;
+
+    if (FIRST("stringList").count(tokens.at(index)->GetType())) {
+        ParseStringList(pred);
+    }
+    else if (!FOLLOW("stringList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
+
+    if (tokens.at(index)->GetType() != TokenType::RIGHT_PAREN) {
+        throw tokens.at(index)->ToString();
+    }
+    index++;
+
+    if (tokens.at(index)->GetType() != TokenType::PERIOD) {
+        throw tokens.at(index)->ToString();
+    }
+    index++;
+    return pred;
 }
 
-void Parser::ParseStringList() {
+void Parser::ParseStringList(Predicate* pred) {
 
 }
 
-void Parser::ParseRule() {
-    try {
-        if (!FIRST("headPredicate").count(tokens.at(index)->GetType())) {
-            throw "Expected headPredicate, got " + tokens.at(index)->ToString();
-        }
-        ParseHeadPredicate();
-
-        if (tokens.at(index)->GetType() != TokenType::COLON_DASH) {
-            throw "Expected COLON_DASH, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (!FIRST("predicate").count(tokens.at(index)->GetType())) {
-            throw "Expected predicate, got " + tokens.at(index)->ToString();
-        }
-        ParsePredicate();
-
-        if (FIRST("predicateList").count(tokens.at(index)->GetType())) {
-            ParsePredicateList();
-        }
-        else if (!FOLLOW("predicateList").count(tokens.at(index)->GetType())) {
-            throw "Expected predicateList, got " + tokens.at(index)->ToString();
-        }
-
-        if (tokens.at(index)->GetType() != TokenType::PERIOD) {
-            throw "Expected PERIOD, got " + tokens.at(index)->ToString();
-        }
-        index++;
+Rule* Parser::ParseRule() {
+    if (!FIRST("headPredicate").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParseRule(): " << message << std::endl;
+
+    Rule* rule = new Rule(ParseHeadPredicate());
+
+    if (tokens.at(index)->GetType() != TokenType::COLON_DASH) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParseRule(): Reached end of file prematurely." << std::endl;
+    index++;
+
+    if (!FIRST("predicate").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
     }
+    rule->AddPredicate(ParsePredicate());
+
+    if (FIRST("predicateList").count(tokens.at(index)->GetType())) {
+        ParsePredicateList(rule);
+    }
+    else if (!FOLLOW("predicateList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
+
+    if (tokens.at(index)->GetType() != TokenType::PERIOD) {
+        throw tokens.at(index)->ToString();
+    }
+    index++;
+    return rule;
 }
 
-void Parser::ParseHeadPredicate() {
-    try {
-        if (tokens.at(index)->GetType() != TokenType::ID) {
-            throw "Expected ID, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (tokens.at(index)->GetType() != TokenType::LEFT_PAREN) {
-            throw "Expected LEFT_PAREN, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (tokens.at(index)->GetType() != TokenType::ID) {
-            throw "Expected ID, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (FIRST("idList").count(tokens.at(index)->GetType())) {
-            ParseIDList();
-        }
-        else if (!FOLLOW("idList").count(tokens.at(index)->GetType())) {
-            throw "Expected idList, got " + tokens.at(index)->ToString();
-        }
-
-        if (tokens.at(index)->GetType() != TokenType::RIGHT_PAREN) {
-            throw "Expected RIGHT_PAREN, got " + tokens.at(index)->ToString();
-        }
-        index++;
+Predicate* Parser::ParseHeadPredicate() {
+    if (tokens.at(index)->GetType() != TokenType::ID) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParseHeadPredicate(): " << message << std::endl;
+    auto pred = new Predicate(tokens.at(index)->GetDescription());
+    index++;
+
+    if (tokens.at(index)->GetType() != TokenType::LEFT_PAREN) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParseHeadPredicate(): Reached end of file prematurely." << std::endl;
+    index++;
+
+    if (tokens.at(index)->GetType() != TokenType::ID) {
+        throw tokens.at(index)->ToString();
     }
+    pred->AddParameter(new Parameter(tokens.at(index)->GetDescription()));
+    index++;
+
+    if (FIRST("idList").count(tokens.at(index)->GetType())) {
+        ParseIDList(pred);
+    }
+    else if (!FOLLOW("idList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
+
+    if (tokens.at(index)->GetType() != TokenType::RIGHT_PAREN) {
+        throw tokens.at(index)->ToString();
+    }
+    index++;
+    return pred;
 }
 
-void Parser::ParsePredicate() {
-    try {
-        if (tokens.at(index)->GetType() != TokenType::ID) {
-            throw "Expected ID, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (tokens.at(index)->GetType() != TokenType::LEFT_PAREN) {
-            throw "Expected LEFT_PAREN, got " + tokens.at(index)->ToString();
-        }
-        index++;
-
-        if (!FIRST("parameter").count(tokens.at(index)->GetType())) {
-            throw "Expected parameter, got " + tokens.at(index)->ToString();
-        }
-        ParseParameter();
-
-        if (FIRST("parameterList").count(tokens.at(index)->GetType())) {
-            ParseParameterList();
-        }
-        else if (!FOLLOW("parameterList").count(tokens.at(index)->GetType())) {
-            throw "Expected parameterList, got " + tokens.at(index)->ToString();
-        }
-
-        if (tokens.at(index)->GetType() != TokenType::RIGHT_PAREN) {
-            throw "Expected RIGHT_PAREN, got " + tokens.at(index)->ToString();
-        }
-        index++;
+Predicate* Parser::ParsePredicate() {
+    if (tokens.at(index)->GetType() != TokenType::ID) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParsePredicate(): " << message << std::endl;
+    auto pred = new Predicate(tokens.at(index)->GetDescription());
+    index++;
+
+    if (tokens.at(index)->GetType() != TokenType::LEFT_PAREN) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParsePredicate(): Reached end of file prematurely." << std::endl;
+    index++;
+
+    if (!FIRST("parameter").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
     }
+    pred->AddParameter(ParseParameter());
+
+    if (FIRST("parameterList").count(tokens.at(index)->GetType())) {
+        ParseParameterList(pred);
+    }
+    else if (!FOLLOW("parameterList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
+
+    if (tokens.at(index)->GetType() != TokenType::RIGHT_PAREN) {
+        throw tokens.at(index)->ToString();
+    }
+    index++;
+    return pred;
 }
 
-void Parser::ParsePredicateList() {
+void Parser::ParsePredicateList(Rule* rule) {
 
 }
 
-void Parser::ParseParameter() {
-    try {
-        if (tokens.at(index)->GetType() != TokenType::STRING && tokens.at(index)->GetType() != TokenType::ID) {
-            throw "Expected STRING or ID, got " + tokens.at(index)->ToString();
-        }
-        index++;
+Parameter* Parser::ParseParameter() {
+    if (tokens.at(index)->GetType() != TokenType::STRING && tokens.at(index)->GetType() != TokenType::ID) {
+        throw tokens.at(index)->ToString();
     }
-    catch (std::string &message) {
-        std::cout << "Exception in ParseParameter(): " << message << std::endl;
-    }
-    catch (std::out_of_range &e) {
-        std::cout << "Exception in ParseParameter(): Reached end of file prematurely." << std::endl;
-    }
+    auto param = new Parameter(tokens.at(index)->GetDescription());
+    index++;
+    return param;
 }
 
-void Parser::ParseParameterList() {
+void Parser::ParseParameterList(Predicate* pred) {
 
 }
-#pragma clang diagnostic pop
