@@ -15,7 +15,7 @@ private:
 public:
     Lexer();
     ~Lexer();
-    const std::vector<Token*> *GetTokens() const { return &tokens; }
+    std::vector<Token*> GetTokens() const { return tokens; }
 
     void Run(std::string& input);
 
