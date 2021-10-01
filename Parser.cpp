@@ -180,7 +180,16 @@ Predicate* Parser::ParseScheme() {
 }
 
 void Parser::ParseSchemeList(DatalogProgram* prog) {
-
+    if (!FIRST("scheme").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
+    prog->AddScheme(ParseScheme());
+    if (FIRST("schemeList").count(tokens.at(index)->GetType())) {
+        ParseSchemeList(prog);
+    }
+    else if (!FOLLOW("schemeList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
 }
 
 void Parser::ParseFactList(DatalogProgram* prog) {
@@ -224,7 +233,17 @@ Predicate* Parser::ParseQuery() {
 }
 
 void Parser::ParseQueryList(DatalogProgram* prog) {
+    if (!FIRST("query").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
+    prog->AddQuery(ParseQuery());
 
+    if (FIRST("queryList").count(tokens.at(index)->GetType())) {
+        ParseQueryList(prog);
+    }
+    else if (!FOLLOW("queryList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
 }
 
 void Parser::ParseIDList(Predicate* pred) {
@@ -286,7 +305,23 @@ Predicate* Parser::ParseFact() {
 }
 
 void Parser::ParseStringList(Predicate* pred) {
+    if (tokens.at(index)->GetType() != TokenType::COMMA) {
+        throw tokens.at(index)->ToString();
+    }
+    index++;
 
+    if (tokens.at(index)->GetType() != TokenType::STRING) {
+        throw tokens.at(index)->ToString();
+    }
+    pred->AddParameter(new Parameter(tokens.at(index)->GetDescription()));
+    index++;
+
+    if (FIRST("stringList").count(tokens.at(index)->GetType())) {
+        //idList -> COMMA STRING stringList
+        ParseIDList(pred);
+    } else if (!FOLLOW("stringList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
 }
 
 Rule* Parser::ParseRule() {
@@ -384,7 +419,23 @@ Predicate* Parser::ParsePredicate() {
 }
 
 void Parser::ParsePredicateList(Rule* rule) {
+    if (tokens.at(index)->GetType() != TokenType::COMMA) {
+        throw tokens.at(index)->ToString();
+    }
+    index++;
 
+    if (!FIRST("predicate").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
+    rule->AddPredicate(new Predicate(tokens.at(index)->GetDescription()));
+    index++;
+
+    if (FIRST("predicateList").count(tokens.at(index)->GetType())) {
+        //idList -> COMMA ID idList
+        ParsePredicateList(rule);
+    } else if (!FOLLOW("predicateList").count(tokens.at(index)->GetType())) {
+        throw tokens.at(index)->ToString();
+    }
 }
 
 Parameter* Parser::ParseParameter() {
