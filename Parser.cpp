@@ -427,8 +427,7 @@ void Parser::ParsePredicateList(Rule* rule) {
     if (!FIRST("predicate").count(tokens.at(index)->GetType())) {
         throw tokens.at(index)->ToString();
     }
-    rule->AddPredicate(new Predicate(tokens.at(index)->GetDescription()));
-    index++;
+    rule->AddPredicate(ParsePredicate());
 
     if (FIRST("predicateList").count(tokens.at(index)->GetType())) {
         //idList -> COMMA ID idList
